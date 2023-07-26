@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, url_for, redirect, flash, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
+from user_table import User, db
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from os import getenv
 from dotenv import load_dotenv
@@ -10,15 +10,7 @@ load_dotenv()
 app.config['SECRET_KEY'] = getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
-
-## CREATE TABLE IN DB
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
-    name = db.Column(db.String(1000))
+db.init_app(app=app)
 
 
 # Line below only required once, when creating DB.
@@ -31,8 +23,20 @@ def home():
     return render_template("index.html")
 
 
-@app.route('/register')
+@app.route('/register', methods=['GET', 'POST'])
 def register():
+    if request.method == 'POST':
+        user = User()
+        user.name = request.form.get('name')
+        user.email = request.form.get('email')
+        user.password = request.form.get('password')
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except Exception as e:
+            print(e)
+            return redirect(url_for('home'))
+        return redirect(url_for('secrets', name=user.name))
     return render_template("register.html")
 
 
@@ -43,7 +47,8 @@ def login():
 
 @app.route('/secrets')
 def secrets():
-    return render_template("secrets.html")
+    name = request.args.get('name')
+    return render_template("secrets.html", name=name)
 
 
 @app.route('/logout')
