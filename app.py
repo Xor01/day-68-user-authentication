@@ -14,8 +14,8 @@ db.init_app(app=app)
 
 
 # Line below only required once, when creating DB.
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 
 
 @app.route('/')
@@ -29,7 +29,7 @@ def register():
         user = User()
         user.name = request.form.get('name')
         user.email = request.form.get('email')
-        user.password = request.form.get('password')
+        user.password = generate_password_hash(request.form.get('password'))
         try:
             db.session.add(user)
             db.session.commit()
