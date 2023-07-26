@@ -21,7 +21,7 @@ with app.app_context():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_or_404(User, user_id)
+    return User.query.get(int(user_id))
 
 
 @app.route('/')
@@ -32,18 +32,24 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+
         user = User()
-        user.name = request.form.get('name')
         user.email = request.form.get('email')
+        is_user_exist = User.query.filter_by(email=user.email).first()
+
+        if is_user_exist:
+            flash('A user is registered with this email, login instead')
+            return redirect(url_for('login'))
+
+        user.name = request.form.get('name')
         user.password = generate_password_hash(request.form.get('password'))
-        try:
-            db.session.add(user)
-            db.session.commit()
-            login_user(user)
-        except Exception as e:
-            print(e)
-            return redirect(url_for('home'))
-        return redirect(url_for('secrets', name=user.name))
+
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        flash('Your account is created successfully')
+        return redirect(url_for('secrets', name=current_user.name))
+
     return render_template("register.html")
 
 
@@ -52,11 +58,13 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-        user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+        user = User.query.filter_by(email=email).first()
         if user:
             if check_password_hash(user.password, password):
                 login_user(user)
+                flash('You have been logged in successfully')
                 return redirect(url_for('secrets'))
+        flash("Password/Email is wrong")
     return render_template("login.html")
 
 
@@ -68,7 +76,8 @@ def secrets():
 
 @app.route('/logout')
 def logout():
-    pass
+    logout_user()
+    return redirect(url_for('home'))
 
 
 @app.route('/download')
